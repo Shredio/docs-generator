@@ -12,6 +12,7 @@ use Shredio\DocsGenerator\Markdown\MarkdownSnippetParser;
 use Shredio\DocsGenerator\Markdown\MarkdownVariableParser;
 use Shredio\DocsGenerator\Processor\Command\DumpClassDocTemplateCommand;
 use Shredio\DocsGenerator\Processor\Command\IncludeDocTemplateCommand;
+use Shredio\DocsGenerator\Processor\Command\PrintClassCodeBlockDocTemplateCommand;
 use Shredio\DocsGenerator\Processor\Command\PrintClassDocTemplateCommand;
 
 final class DocTemplateProcessor
@@ -56,6 +57,7 @@ final class DocTemplateProcessor
 		$this->addCommand(new DumpClassDocTemplateCommand());
 		$this->addCommand(new IncludeDocTemplateCommand($this));
 		$this->addCommand(new PrintClassDocTemplateCommand());
+		$this->addCommand(new PrintClassCodeBlockDocTemplateCommand());
 	}
 
 	/**
