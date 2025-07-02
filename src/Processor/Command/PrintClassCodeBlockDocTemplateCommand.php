@@ -30,6 +30,6 @@ final class PrintClassCodeBlockDocTemplateCommand implements DocTemplateCommandI
 			throw new LogicException(sprintf('Class "%s" does not have a file location.', $fullClassName));
 		}
 
-		return sprintf("```php\n%s\n```", FileSystem::read($fileName));
+		return sprintf("```php\n%s\n```", trim(FileSystem::read($fileName)));
 	}
 }
