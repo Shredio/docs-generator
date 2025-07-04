@@ -170,6 +170,48 @@ function testFunction() {}';
         $this->assertSame('TestClass', PhpReflector::getClassNameFromFullName('TestClass'));
         $this->assertSame('TestClass', PhpReflector::getClassNameFromFullName('Very\Deep\Namespace\TestClass'));
     }
+
+    public function testSkipItemsWithDocsIgnore(): void
+    {
+        $signature = PhpReflector::getClassSignature(SampleClassWithIgnored::class);
+        
+        $this->assertStringNotContainsString('ignoredProperty', $signature);
+        $this->assertStringNotContainsString('ignoredMethod', $signature);
+        $this->assertStringNotContainsString('IGNORED_CONSTANT', $signature);
+        $this->assertStringContainsString('visibleProperty', $signature);
+        $this->assertStringContainsString('visibleMethod', $signature);
+        $this->assertStringContainsString('VISIBLE_CONSTANT', $signature);
+    }
+
+    public function testSkipItemsWithInternal(): void
+    {
+        $signature = PhpReflector::getClassSignature(SampleClassWithInternal::class);
+        
+        $this->assertStringNotContainsString('internalProperty', $signature);
+        $this->assertStringNotContainsString('internalMethod', $signature);
+        $this->assertStringNotContainsString('INTERNAL_CONSTANT', $signature);
+        $this->assertStringContainsString('publicProperty', $signature);
+        $this->assertStringContainsString('publicMethod', $signature);
+        $this->assertStringContainsString('PUBLIC_CONSTANT', $signature);
+    }
+
+    public function testGetClassSignatureWithInheritance(): void
+    {
+        $signature = PhpReflector::getClassSignature(SampleChildClass::class);
+        
+        $this->assertStringContainsString('class SampleChildClass extends SampleBaseClass', $signature);
+        $this->assertStringContainsString('public function childMethod()', $signature);
+        $this->assertStringNotContainsString('public function baseMethod()', $signature); // Methods from parent are not included
+    }
+
+    public function testGetClassSignatureBaseClassWithoutInheritance(): void
+    {
+        $signature = PhpReflector::getClassSignature(SampleBaseClass::class);
+        
+        $this->assertStringContainsString('class SampleBaseClass', $signature);
+        $this->assertStringNotContainsString('extends', $signature);
+        $this->assertStringContainsString('public function baseMethod()', $signature);
+    }
 }
 
 final class SampleClass
@@ -244,5 +286,75 @@ final class SampleClassWithArrays
     public function processItems(array $items): array
     {
         return [];
+    }
+}
+
+final class SampleClassWithIgnored
+{
+    public const VISIBLE_CONSTANT = 'visible';
+    
+    /**
+     * @docs-ignore
+     */
+    public const IGNORED_CONSTANT = 'ignored';
+    
+    public string $visibleProperty = 'visible';
+    
+    /**
+     * @docs-ignore
+     */
+    public string $ignoredProperty = 'ignored';
+    
+    public function visibleMethod(): void
+    {
+    }
+    
+    /**
+     * @docs-ignore
+     */
+    public function ignoredMethod(): void
+    {
+    }
+}
+
+final class SampleClassWithInternal
+{
+    public const PUBLIC_CONSTANT = 'public';
+    
+    /**
+     * @internal
+     */
+    public const INTERNAL_CONSTANT = 'internal';
+    
+    public string $publicProperty = 'public';
+    
+    /**
+     * @internal
+     */
+    public string $internalProperty = 'internal';
+    
+    public function publicMethod(): void
+    {
+    }
+    
+    /**
+     * @internal
+     */
+    public function internalMethod(): void
+    {
+    }
+}
+
+class SampleBaseClass
+{
+    public function baseMethod(): void
+    {
+    }
+}
+
+final class SampleChildClass extends SampleBaseClass
+{
+    public function childMethod(): void
+    {
     }
 }

@@ -3,6 +3,7 @@
 namespace Shredio\DocsGenerator\Php;
 
 use LogicException;
+use Nette\PhpGenerator\ClassType;
 use Nette\PhpGenerator\Factory;
 use Nette\PhpGenerator\Helpers;
 use Nette\PhpGenerator\PhpNamespace;
@@ -48,6 +49,13 @@ final readonly class PhpReflector
 			$class->setReadOnly($reflectionClass->isReadOnly());
 		}
 
+		if ($class instanceof ClassType) {
+			$parentClass = $reflectionClass->getParentClass();
+			if ($parentClass !== false) {
+				$class->setExtends($parentClass->getName());
+			}
+		}
+
 		$docComment = $reflectionClass->getDocComment();
 
 		if ($docComment !== false) {
@@ -76,6 +84,10 @@ final readonly class PhpReflector
 			}
 
 			if (in_array($reflectionProperty->getName(), $excludeProperties, true)) {
+				continue;
+			}
+
+			if (self::shouldIgnoreDocComment($reflectionProperty->getDocComment())) {
 				continue;
 			}
 
@@ -108,6 +120,10 @@ final readonly class PhpReflector
 				continue;
 			}
 
+			if (self::shouldIgnoreDocComment($reflectionConstant->getDocComment())) {
+				continue;
+			}
+
 			$constant = $generatorFactory->fromConstantReflection($reflectionConstant);
 			$constant->setAttributes([]);
 
@@ -124,6 +140,10 @@ final readonly class PhpReflector
 			}
 
 			if (in_array($reflectionMethod->getName(), $excludeMethods, true)) {
+				continue;
+			}
+
+			if (self::shouldIgnoreDocComment($reflectionMethod->getDocComment())) {
 				continue;
 			}
 
@@ -210,6 +230,15 @@ final readonly class PhpReflector
 
 			yield from self::getTraitConstants($trait, $filter);
 		}
+	}
+
+	private static function shouldIgnoreDocComment(string|false|null $docComment): bool
+	{
+		if ($docComment === null || $docComment === false) {
+			return false;
+		}
+
+		return str_contains($docComment, '@docs-ignore') || str_contains($docComment, '@internal');
 	}
 
 	private static function getParameterCommentHint(string $comment, string $parameterName): ?string
