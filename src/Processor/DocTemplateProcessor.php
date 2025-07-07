@@ -73,7 +73,7 @@ final class DocTemplateProcessor
 				// Parse markdown headers and get content without headers
 				$parsedMarkdown = MarkdownHeaderParser::parse($fileContents);
 
-				$context = new DocTemplateContext($file->getPath(), $this->rootDir);
+				$context = new DocTemplateContext($file->getPath(), $this->rootDir, $parameters);
 				$contents = $this->parseContent($parsedMarkdown->content, $context, $parameters, false);
 
 				$targetPaths = $this->getTargetPaths($parsedMarkdown->headers);

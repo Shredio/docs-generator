@@ -6,9 +6,14 @@ namespace Shredio\DocsGenerator\Command;
 
 final readonly class DocTemplateContext
 {
+
+	/**
+	 * @param array<string, string> $parameters
+	 */
     public function __construct(
         public string $workingDir,
         public string $rootDir,
+		public array $parameters = [],
     ) {
     }
 

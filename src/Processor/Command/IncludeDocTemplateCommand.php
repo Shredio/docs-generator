@@ -29,7 +29,7 @@ final class IncludeDocTemplateCommand implements DocTemplateCommandInterface
 			throw new LogicException(sprintf('File "%s" does not exist.', $file));
 		}
 
-		return $this->processor->parseContent(FileSystem::read($file), $context->withWorkingDir(dirname($file)));
+		return $this->processor->parseContent(FileSystem::read($file), $context->withWorkingDir(dirname($file)), $context->parameters);
 	}
 
 	private function resolveFilePath(string $file, DocTemplateContext $context): string
