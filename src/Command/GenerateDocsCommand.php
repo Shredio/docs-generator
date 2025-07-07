@@ -47,7 +47,14 @@ final class GenerateDocsCommand
 
 			return Command::SUCCESS;
 		} catch (LogicException $e) {
-			$io->error($e->getMessage());
+			$file = $e->sourceFile;
+
+			if ($file !== null) {
+				$io->error(sprintf('Error in file "%s": %s', $file, $e->getMessage()));
+			} else {
+				$io->error($e->getMessage());
+			}
+
 			return Command::FAILURE;
 		}
 	}

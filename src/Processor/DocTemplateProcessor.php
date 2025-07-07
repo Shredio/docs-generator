@@ -67,24 +67,33 @@ final class DocTemplateProcessor
 	private function parseFiles(Finder $finder, array $parameters): iterable
 	{
 		foreach ($finder as $file) {
-			$fileContents = $file->read();
+			try {
+				$fileContents = $file->read();
 
-			// Parse markdown headers and get content without headers
-			$parsedMarkdown = MarkdownHeaderParser::parse($fileContents);
-			
-			$context = new DocTemplateContext($file->getPath(), $this->rootDir);
-			$contents = $this->parseContent($parsedMarkdown->content, $context, $parameters);
+				// Parse markdown headers and get content without headers
+				$parsedMarkdown = MarkdownHeaderParser::parse($fileContents);
 
-			$targetPaths = $this->getTargetPaths($parsedMarkdown->headers);
+				$context = new DocTemplateContext($file->getPath(), $this->rootDir);
+				$contents = $this->parseContent($parsedMarkdown->content, $context, $parameters);
 
-			foreach ($targetPaths as $targetPath) {
-				FileSystem::write($targetPath, $contents . "\n");
-				yield $targetPath;
-			}
+				$targetPaths = $this->getTargetPaths($parsedMarkdown->headers);
 
-			// Process claude-command-target headers when claudeCommandsDir is set
-			if ($this->claudeCommandsDir !== null) {
-				yield from $this->processClaudeCommandTargets($parsedMarkdown->headers, $contents, $file->getBasename());
+				foreach ($targetPaths as $targetPath) {
+					FileSystem::write($targetPath, $contents . "\n");
+					yield $targetPath;
+				}
+
+				// Process claude-command-target headers when claudeCommandsDir is set
+				if ($this->claudeCommandsDir !== null) {
+					yield from $this->processClaudeCommandTargets($parsedMarkdown->headers, $contents, $file->getBasename());
+				}
+			} catch (LogicException $e) {
+				$realPath = $file->getRealPath();
+				if ($realPath !== false) {
+					$e->sourceFile = $realPath;
+				}
+
+				throw $e;
 			}
 		}
 	}
@@ -144,14 +153,31 @@ final class DocTemplateProcessor
 			} elseif ($header->name === 'claude-command-prompt') {
 				$promptCount++;
 				$claudeCommandPrompt = $header->value;
+			} elseif ($header->name === 'claude-command') {
+				$parts = explode('--', $header->value, 2);
+				$target = trim($parts[0]);
+				$prompt = $parts[1] ?? null;
+
+				if ($prompt === null) {
+					throw new LogicException(sprintf(
+						'Invalid claude-command header "%s". It must contain a prompt after "--".',
+						$header->value
+					));
+				}
+
+				yield $this->writeClaudeCommand($contents, trim($prompt), $target);
 			}
+		}
+
+		$targetCount = count($claudeCommandTargets);
+
+		if ($targetCount === 0 && $promptCount === 0) {
+			return; // No claude-command-target or claude-command-prompt headers found
 		}
 
 		if ($promptCount > 1) {
 			throw new LogicException('Multiple claude-command-prompt headers found. Only one is allowed.');
 		}
-
-		$targetCount = count($claudeCommandTargets);
 
 		if ($targetCount > 0 && $claudeCommandPrompt === null) {
 			throw new LogicException('claude-command-prompt header is required when claude-command-target headers are present.');
@@ -159,19 +185,26 @@ final class DocTemplateProcessor
 
 		if ($targetCount > 0) {
 			foreach ($claudeCommandTargets as $target) {
-				$targetPath = $this->claudeCommandsDir . '/' . ltrim($target, '/');
-				$finalContents = $claudeCommandPrompt . "\n\n" . $contents;
-				
-				FileSystem::write($targetPath, $finalContents . "\n");
-				yield $targetPath;
+				yield $this->writeClaudeCommand($contents, $claudeCommandPrompt, $target);
 			}
 		} elseif ($claudeCommandPrompt !== null) {
-			$targetPath = $this->claudeCommandsDir . '/' . $originalFilename;
-			$finalContents = $claudeCommandPrompt . "\n\n" . $contents;
-			
-			FileSystem::write($targetPath, $finalContents . "\n");
-			yield $targetPath;
+			yield $this->writeClaudeCommand($contents, $claudeCommandPrompt, $originalFilename);
 		}
+	}
+
+	private function writeClaudeCommand(string $contents, ?string $prompt, string $target): string
+	{
+		$targetPath = $this->claudeCommandsDir . '/' . ltrim($target, '/');
+
+		if ($prompt !== null) {
+			$finalContents = $prompt . "\n\n" . $contents;
+		} else {
+			$finalContents = $contents;
+		}
+
+		FileSystem::write($targetPath, trim($finalContents) . "\n");
+
+		return $targetPath;
 	}
 
 	/**

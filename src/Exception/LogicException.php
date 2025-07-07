@@ -5,4 +5,6 @@ namespace Shredio\DocsGenerator\Exception;
 final class LogicException extends \LogicException
 {
 
+	public ?string $sourceFile = null;
+
 }
