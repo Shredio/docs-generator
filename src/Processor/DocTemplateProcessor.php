@@ -74,7 +74,7 @@ final class DocTemplateProcessor
 				$parsedMarkdown = MarkdownHeaderParser::parse($fileContents);
 
 				$context = new DocTemplateContext($file->getPath(), $this->rootDir);
-				$contents = $this->parseContent($parsedMarkdown->content, $context, $parameters);
+				$contents = $this->parseContent($parsedMarkdown->content, $context, $parameters, false);
 
 				$targetPaths = $this->getTargetPaths($parsedMarkdown->headers);
 
@@ -210,8 +210,12 @@ final class DocTemplateProcessor
 	/**
 	 * @param array<string, string> $parameters
 	 */
-	public function parseContent(string $contents, DocTemplateContext $context, array $parameters = []): string
+	public function parseContent(string $contents, DocTemplateContext $context, array $parameters = [], bool $parseHeaders = true): string
 	{
+		if ($parseHeaders) {
+			$contents = MarkdownHeaderParser::parse($contents)->content;
+		}
+
 		// Replace variables first
 		$variables = MarkdownVariableParser::parse($contents);
 		if ($variables) {
