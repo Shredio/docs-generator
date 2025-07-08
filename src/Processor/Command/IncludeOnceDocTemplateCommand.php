@@ -8,8 +8,11 @@ use Shredio\DocsGenerator\Exception\LogicException;
 use Shredio\DocsGenerator\Processor\DocTemplateCommandInterface;
 use Shredio\DocsGenerator\Processor\DocTemplateProcessor;
 
-final class IncludeDocTemplateCommand implements DocTemplateCommandInterface
+final class IncludeOnceDocTemplateCommand implements DocTemplateCommandInterface
 {
+	/** @var array<string, bool> */
+	private array $included = [];
+
 	public function __construct(
 		private readonly DocTemplateProcessor $processor,
 	)
@@ -18,7 +21,7 @@ final class IncludeDocTemplateCommand implements DocTemplateCommandInterface
 
 	public function getName(): string
 	{
-		return 'include';
+		return 'include-once';
 	}
 
 	public function invoke(DocTemplateContext $context, array $args): string
@@ -28,6 +31,17 @@ final class IncludeDocTemplateCommand implements DocTemplateCommandInterface
 		if (!is_file($file)) {
 			throw new LogicException(sprintf('File "%s" does not exist.', $file));
 		}
+
+		$file = realpath($file);
+
+		if ($file === false) {
+			throw new LogicException(sprintf('File "%s" could not be resolved to an absolute path.', $args[0]));
+		}
+
+		if (isset($this->included[$file])) {
+			return '';
+		}
+		$this->included[$file] = true;
 
 		return $this->processor->parseContent(FileSystem::read($file), $context->withWorkingDir(dirname($file)), $context->parameters);
 	}
@@ -51,6 +65,6 @@ final class IncludeDocTemplateCommand implements DocTemplateCommandInterface
 
 	public function reset(): void
 	{
-		// no need to reset state for this command
+		$this->included = [];
 	}
 }

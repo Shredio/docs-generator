@@ -54,4 +54,10 @@ final class DumpClassDocTemplateCommand implements DocTemplateCommandInterface
 
 		return $methodsToPrint;
 	}
+
+	public function reset(): void
+	{
+		// no need to reset state for this command
+	}
+
 }

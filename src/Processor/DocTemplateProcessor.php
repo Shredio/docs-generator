@@ -2,16 +2,17 @@
 
 namespace Shredio\DocsGenerator\Processor;
 
-use Shredio\DocsGenerator\Exception\LogicException;
 use Nette\Utils\FileSystem;
 use Nette\Utils\Finder;
 use Shredio\DocsGenerator\Command\DocTemplateContext;
+use Shredio\DocsGenerator\Exception\LogicException;
 use Shredio\DocsGenerator\Markdown\MarkdownHeader;
 use Shredio\DocsGenerator\Markdown\MarkdownHeaderParser;
 use Shredio\DocsGenerator\Markdown\MarkdownSnippetParser;
 use Shredio\DocsGenerator\Markdown\MarkdownVariableParser;
 use Shredio\DocsGenerator\Processor\Command\DumpClassDocTemplateCommand;
 use Shredio\DocsGenerator\Processor\Command\IncludeDocTemplateCommand;
+use Shredio\DocsGenerator\Processor\Command\IncludeOnceDocTemplateCommand;
 use Shredio\DocsGenerator\Processor\Command\PrintClassCodeBlockDocTemplateCommand;
 use Shredio\DocsGenerator\Processor\Command\PrintClassDocTemplateCommand;
 
@@ -56,6 +57,7 @@ final class DocTemplateProcessor
 	{
 		$this->addCommand(new DumpClassDocTemplateCommand());
 		$this->addCommand(new IncludeDocTemplateCommand($this));
+		$this->addCommand(new IncludeOnceDocTemplateCommand($this));
 		$this->addCommand(new PrintClassDocTemplateCommand());
 		$this->addCommand(new PrintClassCodeBlockDocTemplateCommand());
 	}
@@ -67,6 +69,10 @@ final class DocTemplateProcessor
 	private function parseFiles(Finder $finder, array $parameters): iterable
 	{
 		foreach ($finder as $file) {
+			foreach ($this->commands as $command) {
+				$command->reset();
+			}
+
 			try {
 				$fileContents = $file->read();
 

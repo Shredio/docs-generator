@@ -26,4 +26,9 @@ final class InlineDocTemplateCommand implements DocTemplateCommandInterface
 	{
 		return ($this->callback)($context, $args);
 	}
+
+	public function reset(): void
+	{
+		// no need to reset state for this command
+	}
 }

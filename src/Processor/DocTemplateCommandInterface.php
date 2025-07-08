@@ -8,6 +8,8 @@ interface DocTemplateCommandInterface
 {
 	public function getName(): string;
 
+	public function reset(): void;
+
 	/**
 	 * @param non-empty-list<string> $args
 	 */

@@ -32,4 +32,9 @@ final class PrintClassDocTemplateCommand implements DocTemplateCommandInterface
 
 		return FileSystem::read($fileName);
 	}
+
+	public function reset(): void
+	{
+		// no need to reset state for this command
+	}
 }

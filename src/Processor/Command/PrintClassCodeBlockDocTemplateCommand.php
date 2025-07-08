@@ -32,4 +32,9 @@ final class PrintClassCodeBlockDocTemplateCommand implements DocTemplateCommandI
 
 		return sprintf("```php\n%s\n```", trim(FileSystem::read($fileName)));
 	}
+
+	public function reset(): void
+	{
+		// no need to reset state for this command
+	}
 }
