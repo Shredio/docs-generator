@@ -67,4 +67,9 @@ final class IncludeOnceDocTemplateCommand implements DocTemplateCommandInterface
 	{
 		$this->included = [];
 	}
+
+	public function after(string $contents): string
+	{
+		return $contents;
+	}
 }

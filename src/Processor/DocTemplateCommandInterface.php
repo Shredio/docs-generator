@@ -14,4 +14,7 @@ interface DocTemplateCommandInterface
 	 * @param non-empty-list<string> $args
 	 */
 	public function invoke(DocTemplateContext $context, array $args): string;
+
+	public function after(string $contents): string;
+
 }

@@ -31,4 +31,9 @@ final class InlineDocTemplateCommand implements DocTemplateCommandInterface
 	{
 		// no need to reset state for this command
 	}
+
+	public function after(string $contents): string
+	{
+		return $contents;
+	}
 }

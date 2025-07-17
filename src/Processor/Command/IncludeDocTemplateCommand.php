@@ -49,6 +49,11 @@ final class IncludeDocTemplateCommand implements DocTemplateCommandInterface
 		return $context->workingDir . '/' . $file;
 	}
 
+	public function after(string $contents): string
+	{
+		return $contents;
+	}
+
 	public function reset(): void
 	{
 		// no need to reset state for this command

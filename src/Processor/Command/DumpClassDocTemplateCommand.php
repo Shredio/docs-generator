@@ -34,7 +34,7 @@ final class DumpClassDocTemplateCommand implements DocTemplateCommandInterface
 		);
 
 		return sprintf(
-			"A shortened version of the source code for the class **%s**:\n" .
+			"Code snippet of **%s**:\n" .
 			"```php\n%s\n```",
 			$fullClassName,
 			trim($signature),
@@ -58,6 +58,11 @@ final class DumpClassDocTemplateCommand implements DocTemplateCommandInterface
 	public function reset(): void
 	{
 		// no need to reset state for this command
+	}
+
+	public function after(string $contents): string
+	{
+		return $contents;
 	}
 
 }

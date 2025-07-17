@@ -10,6 +10,7 @@ use Shredio\DocsGenerator\Markdown\MarkdownHeader;
 use Shredio\DocsGenerator\Markdown\MarkdownHeaderParser;
 use Shredio\DocsGenerator\Markdown\MarkdownSnippetParser;
 use Shredio\DocsGenerator\Markdown\MarkdownVariableParser;
+use Shredio\DocsGenerator\Processor\Command\ContextDocTemplateCommand;
 use Shredio\DocsGenerator\Processor\Command\DumpClassDocTemplateCommand;
 use Shredio\DocsGenerator\Processor\Command\IncludeDocTemplateCommand;
 use Shredio\DocsGenerator\Processor\Command\IncludeOnceDocTemplateCommand;
@@ -56,6 +57,7 @@ final class DocTemplateProcessor
 	private function initializeCommands(): void
 	{
 		$this->addCommand(new DumpClassDocTemplateCommand());
+		$this->addCommand(new ContextDocTemplateCommand());
 		$this->addCommand(new IncludeDocTemplateCommand($this));
 		$this->addCommand(new IncludeOnceDocTemplateCommand($this));
 		$this->addCommand(new PrintClassDocTemplateCommand());
@@ -81,6 +83,12 @@ final class DocTemplateProcessor
 
 				$context = new DocTemplateContext($file->getPath(), $this->rootDir, $parameters);
 				$contents = $this->parseContent($parsedMarkdown->content, $context, $parameters, false);
+
+				foreach ($this->commands as $command) {
+					$contents = $command->after($contents);
+				}
+
+				$contents = trim($contents);
 
 				$targetPaths = $this->getTargetPaths($parsedMarkdown->headers);
 
