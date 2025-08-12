@@ -30,13 +30,13 @@ final readonly class PhpReflector
 		bool $shortDescription = true,
 		bool $nested = false,
 		int $methodsToPrint = ReflectionMethod::IS_PUBLIC,
+		int $propertiesToPrint = ReflectionProperty::IS_PUBLIC,
+		int $classConstantsToPrint = ReflectionClassConstant::IS_PUBLIC,
 	): string
 	{
 		$reflectionClass = new ReflectionClass($className);
 		$generatorFactory = new Factory();
 		$namespace = new PhpNamespace($reflectionClass->getNamespaceName());
-		$propertiesToPrint = ReflectionProperty::IS_PUBLIC;
-		$classContantsToPrint = ReflectionClassConstant::IS_PUBLIC;
 
 		if ($reflectionClass->isInterface()) {
 			$class = $namespace->addClass($reflectionClass->getShortName());
@@ -72,7 +72,7 @@ final readonly class PhpReflector
 		);
 
 		$excludeProperties = !$nested && $reflectionClass->isTrait() ? $getNames(self::getTraitProperties($reflectionClass, $propertiesToPrint)) : [];
-		$excludeClassConstants = !$nested && $reflectionClass->isTrait() ? $getNames(self::getTraitConstants($reflectionClass, $classContantsToPrint)) : [];
+		$excludeClassConstants = !$nested && $reflectionClass->isTrait() ? $getNames(self::getTraitConstants($reflectionClass, $classConstantsToPrint)) : [];
 		$excludeMethods = array_merge(
 			$excludeMethods,
 			!$nested && $reflectionClass->isTrait() ? $getNames(self::getTraitMethods($reflectionClass, $methodsToPrint)) : [],
@@ -111,7 +111,7 @@ final readonly class PhpReflector
 			$class->addMember($property);
 		}
 
-		foreach ($reflectionClass->getReflectionConstants($classContantsToPrint) as $reflectionConstant) {
+		foreach ($reflectionClass->getReflectionConstants($classConstantsToPrint) as $reflectionConstant) {
 			if (!$nested && $reflectionConstant->getDeclaringClass()->name !== $reflectionClass->name) {
 				continue;
 			}

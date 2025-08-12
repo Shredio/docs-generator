@@ -389,7 +389,7 @@ final class DocTemplateProcessorTest extends TestCase
         
         $content = file_get_contents($outputFile);
         $this->assertIsString($content);
-        $this->assertStringContainsString('A shortened version of the source code for the class', $content);
+        $this->assertStringContainsString('Code snippet of **' . DocTemplateProcessor::class . '**:', $content);
         $this->assertStringContainsString('```php', $content);
     }
 
@@ -408,6 +408,6 @@ final class DocTemplateProcessorTest extends TestCase
         
         $content = file_get_contents($outputFile);
         $this->assertIsString($content);
-        $this->assertStringContainsString('A shortened version of the source code for the class', $content);
+        $this->assertStringContainsString('Code snippet of **' . DocTemplateProcessor::class . '**:', $content);
     }
 }
