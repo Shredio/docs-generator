@@ -31,7 +31,7 @@ final class MarkdownHeaderParserTest extends TestCase
     
     public function testParseSingleHeader(): void
     {
-        $content = "#! target: destination/file.md\n\n# Content starts here";
+        $content = "---\ntarget: destination/file.md\n---\n\n# Content starts here";
         $parsed = MarkdownHeaderParser::parse($content);
         
         $this->assertCount(1, $parsed->headers);
@@ -43,7 +43,7 @@ final class MarkdownHeaderParserTest extends TestCase
     
     public function testParseMultipleHeaders(): void
     {
-        $content = "#! target: destination/file.md\n#! command: This is prompt for command\n\n# Content";
+        $content = "---\ntarget: destination/file.md\ncommand: This is prompt for command\n---\n\n# Content";
         $parsed = MarkdownHeaderParser::parse($content);
         
         $this->assertCount(2, $parsed->headers);
@@ -59,7 +59,7 @@ final class MarkdownHeaderParserTest extends TestCase
     
     public function testParseHeadersWithExtraWhitespace(): void
     {
-        $content = "#!   target   :   destination/file.md   \n#!command:value\n\n# Content";
+        $content = "---\n   target   :   destination/file.md   \ncommand:value\n---\n\n# Content";
         $parsed = MarkdownHeaderParser::parse($content);
         
         $this->assertCount(2, $parsed->headers);
@@ -73,20 +73,18 @@ final class MarkdownHeaderParserTest extends TestCase
         $this->assertSame('# Content', $parsed->content);
     }
     
-    public function testParseStopsAtFirstNonHeaderLine(): void
+    public function testParseWithoutClosingDelimiter(): void
     {
-        $content = "#! target: destination/file.md\n# Regular markdown\n#! target: destination/file2.md\n#! command: This is prompt for command";
+        $content = "---\ntarget: destination/file.md\n# Regular markdown";
         $parsed = MarkdownHeaderParser::parse($content);
         
-        $this->assertCount(1, $parsed->headers);
-        $this->assertSame('target', $parsed->headers[0]->name);
-        $this->assertSame('destination/file.md', $parsed->headers[0]->value);
-        $this->assertSame("# Regular markdown\n#! target: destination/file2.md\n#! command: This is prompt for command", $parsed->content);
+        $this->assertCount(0, $parsed->headers);
+        $this->assertSame("---\ntarget: destination/file.md\n# Regular markdown", $parsed->content);
     }
     
     public function testParseIgnoresInvalidHeaders(): void
     {
-        $content = "#! target: destination/file.md\n#! invalid-no-colon\n#! : no-name\n#! empty-value: \n#! command: valid\n\n# Content";
+        $content = "---\ntarget: destination/file.md\ninvalid-no-colon\n: no-name\nempty-value: \ncommand: valid\n---\n\n# Content";
         $parsed = MarkdownHeaderParser::parse($content);
         
         $this->assertCount(2, $parsed->headers);
@@ -99,10 +97,55 @@ final class MarkdownHeaderParserTest extends TestCase
         
         $this->assertSame('# Content', $parsed->content);
     }
+
+	public function testParseVariables(): void
+	{
+		$headers = $this->parse([
+			'target' => '$target',
+			'$target' => 'destination/file.md',
+		]);
+
+		$this->assertCount(1, $headers->headers);
+		$this->assertSame('destination/file.md', $headers->headers[0]->value);
+	}
+
+	public function testParseArrays(): void
+	{
+		$headers = $this->parse([
+			'target' => '["$target", "another.md"]',
+			'$target' => 'destination/file.md',
+		]);
+
+		$this->assertCount(2, $headers->headers);
+		$this->assertSame('destination/file.md', $headers->headers[0]->value);
+		$this->assertSame('another.md', $headers->headers[1]->value);
+	}
+
+	public function testParseQuotedString(): void
+	{
+		$headers = $this->parse([
+			'target' => '"another.md"',
+		]);
+
+		$this->assertCount(1, $headers->headers);
+		$this->assertSame('another.md', $headers->headers[0]->value);
+	}
+
+	public function testParseArrayIndexedKeys(): void
+	{
+		$headers = $this->parse([
+			'target[0]' => 'first.md',
+			'target[1]' => 'another.md',
+		]);
+
+		$this->assertCount(2, $headers->headers);
+		$this->assertSame('target', $headers->headers[0]->name);
+		$this->assertSame('target', $headers->headers[1]->name);
+	}
     
     public function testParseIgnoresEmptyLines(): void
     {
-        $content = "#! target: destination/file.md\n\n\n#! command: valid\n\n# Content";
+        $content = "---\ntarget: destination/file.md\n\n\ncommand: valid\n---\n\n# Content";
         $parsed = MarkdownHeaderParser::parse($content);
         
         $this->assertCount(2, $parsed->headers);
@@ -118,7 +161,7 @@ final class MarkdownHeaderParserTest extends TestCase
     
     public function testParseValueWithColons(): void
     {
-        $content = "#! url: https://example.com:8080/path\n\n# Content";
+        $content = "---\nurl: https://example.com:8080/path\n---\n\n# Content";
         $parsed = MarkdownHeaderParser::parse($content);
         
         $this->assertCount(1, $parsed->headers);
@@ -126,4 +169,16 @@ final class MarkdownHeaderParserTest extends TestCase
         $this->assertSame('https://example.com:8080/path', $parsed->headers[0]->value);
         $this->assertSame('# Content', $parsed->content);
     }
+
+	private function parse(array $lines): ParsedMarkdownHeaders
+	{
+		$code = "---\n";
+		foreach ($lines as $name => $value) {
+			$code .= "$name: $value\n";
+		}
+		$code .= "---\n\n# Content";
+
+		return MarkdownHeaderParser::parse($code);
+	}
+
 }

@@ -8,51 +8,139 @@ final class MarkdownHeaderParser
     {
         $lines = explode("\n", $content);
         $headers = [];
-        $headerEndIndex = 0;
 
-        foreach ($lines as $index => $line) {
-            $trimmedLine = trim($line);
-            
-            // Skip empty lines - they don't stop header parsing
-            if ($trimmedLine === '') {
-                $headerEndIndex = $index + 1;
-                continue;
-            }
-            
-            // If we encounter a non-header line, stop parsing
-            if (!str_starts_with($trimmedLine, '#!')) {
+        // Check if content starts with frontmatter delimiter
+        if (trim($lines[0]) !== '---') {
+            return new ParsedMarkdownHeaders($headers, $content);
+        }
+
+        // Find the closing delimiter
+        $closingDelimiterIndex = null;
+        for ($i = 1; $i < count($lines); $i++) {
+            if (trim($lines[$i]) === '---') {
+                $closingDelimiterIndex = $i;
                 break;
             }
+        }
+
+        // If no closing delimiter found, treat as regular content
+        if ($closingDelimiterIndex === null) {
+            return new ParsedMarkdownHeaders($headers, $content);
+        }
+
+        // Parse frontmatter lines between delimiters
+        for ($i = 1; $i < $closingDelimiterIndex; $i++) {
+            $line = trim($lines[$i]);
             
-            $headerContent = trim(substr($trimmedLine, 2)); // Remove '#!' prefix
-            
-            if ($headerContent === '') {
-                $headerEndIndex = $index + 1;
+            // Skip empty lines
+            if ($line === '') {
                 continue;
             }
             
-            $colonPos = strpos($headerContent, ':');
+            $colonPos = strpos($line, ':');
             if ($colonPos === false) {
-                $headerEndIndex = $index + 1;
                 continue;
             }
             
-            $name = trim(substr($headerContent, 0, $colonPos));
-            $value = trim(substr($headerContent, $colonPos + 1));
+            $name = self::normalizeHeaderName(trim(substr($line, 0, $colonPos)));
+            $value = trim(substr($line, $colonPos + 1));
             
             if ($name === '' || $value === '') {
-                $headerEndIndex = $index + 1;
                 continue;
             }
             
             $headers[] = new MarkdownHeader($name, $value);
-            $headerEndIndex = $index + 1;
         }
 
-        // Remove header lines and return the remaining content
+        // Remove frontmatter and return remaining content
+        $headerEndIndex = $closingDelimiterIndex + 1;
         $contentLines = array_slice($lines, $headerEndIndex);
         $contentWithoutHeaders = ltrim(implode("\n", $contentLines));
         
-        return new ParsedMarkdownHeaders($headers, $contentWithoutHeaders);
+        return new ParsedMarkdownHeaders(self::processHeaders($headers), $contentWithoutHeaders);
     }
+
+	/**
+	 * @param list<MarkdownHeader> $headers
+	 * @return list<MarkdownHeader>
+	 */
+	private static function processHeaders(array $headers): array
+	{
+		return self::replaceVariables(self::expand($headers));
+	}
+
+	/**
+	 * @param list<MarkdownHeader> $headers
+	 * @return list<MarkdownHeader>
+	 */
+	private static function expand(array $headers): array
+	{
+		$return = [];
+
+		foreach ($headers as $header) {
+			if (
+				(str_starts_with($header->value, '[') && str_ends_with($header->value, ']')) ||
+				(str_starts_with($header->value, '"') && str_ends_with($header->value, '"'))
+			) {
+				$decoded = json_decode($header->value, true, flags: JSON_THROW_ON_ERROR);
+
+				if (is_array($decoded)) {
+					foreach ($decoded as $item) {
+						$return[] = new MarkdownHeader($header->name, (string) $item);
+					}
+				} else {
+					$return[] = new MarkdownHeader($header->name, (string) $decoded);
+				}
+			} else {
+				$return[] = $header;
+			}
+		}
+
+		return $return;
+	}
+
+	/**
+	 * @param list<MarkdownHeader> $headers
+	 * @return list<MarkdownHeader>
+	 */
+	private static function replaceVariables(array $headers): array
+	{
+		$variables = [];
+		foreach ($headers as $key => $header) {
+			if (str_starts_with($header->name, '$')) {
+				$variables[$header->name] = $header->value;
+
+				unset($headers[$key]);
+			}
+		}
+
+		if ($variables === []) {
+			return array_values($headers);
+		}
+
+		foreach ($headers as &$header) {
+			foreach ($variables as $varName => $varValue) {
+				if (str_contains($header->value, $varName)) {
+					$header = new MarkdownHeader(
+						$header->name,
+						str_replace($varName, $varValue, $header->value)
+					);
+				}
+			}
+		}
+
+		return array_values($headers);
+	}
+
+	private static function normalizeHeaderName(string $name): string
+	{
+		$pos = strpos($name, '[');
+
+		if ($pos !== false) {
+			$name = substr($name, 0, $pos);
+		}
+
+		return $name;
+	}
+
 }

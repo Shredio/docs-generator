@@ -78,7 +78,7 @@ final class DocTemplateProcessorTest extends TestCase
         $templateDir = $this->tempDir . '/templates';
         mkdir($templateDir);
         
-        $templateContent = "#! target: output.md\n\nHello World";
+        $templateContent = "---\ntarget: output.md\n---\n\nHello World";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         iterator_to_array($this->processor->processTemplates($templateDir));
@@ -94,7 +94,7 @@ final class DocTemplateProcessorTest extends TestCase
         $templateDir = $this->tempDir . '/templates';
         mkdir($templateDir);
         
-        $templateContent = "#! target: output1.md\n#! target: output2.md\n\nHello World";
+        $templateContent = "---\ntarget: output1.md\ntarget: output2.md\n---\n\nHello World";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         iterator_to_array($this->processor->processTemplates($templateDir));
@@ -115,7 +115,7 @@ final class DocTemplateProcessorTest extends TestCase
         $templateDir = $this->tempDir . '/templates';
         mkdir($templateDir);
         
-        $templateContent = "#! target: output.md\n\nContent: {{ print: " . DocTemplateProcessor::class . " }}";
+        $templateContent = "---\ntarget: output.md\n---\n\nContent: {{ print: " . DocTemplateProcessor::class . " }}";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         iterator_to_array($this->processor->processTemplates($templateDir));
@@ -139,7 +139,7 @@ final class DocTemplateProcessorTest extends TestCase
         });
         $this->processor->addCommand($command);
         
-        $templateContent = "#! target: output.md\n\nResult: {{ test: arg1, arg2 }}";
+        $templateContent = "---\ntarget: output.md\n---\n\nResult: {{ test: arg1, arg2 }}";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         iterator_to_array($this->processor->processTemplates($templateDir));
@@ -158,7 +158,7 @@ final class DocTemplateProcessorTest extends TestCase
         $includeContent = "This is included content";
         file_put_contents($templateDir . '/include.md', $includeContent);
         
-        $templateContent = "#! target: output.md\n\nContent: {{ include: include.md }}";
+        $templateContent = "---\ntarget: output.md\n---\n\nContent: {{ include: include.md }}";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         iterator_to_array($this->processor->processTemplates($templateDir));
@@ -179,7 +179,7 @@ final class DocTemplateProcessorTest extends TestCase
         $templateDir = $this->tempDir . '/templates';
         mkdir($templateDir);
         
-        $templateContent = "#! target: output.md\n#! claude-command-target: command.md\n#! claude-command-prompt: Test prompt\n\nHello World";
+        $templateContent = "---\ntarget: output.md\nclaude-command-target: command.md\nclaude-command-prompt: Test prompt\n---\n\nHello World";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         iterator_to_array($processor->processTemplates($templateDir));
@@ -205,7 +205,7 @@ final class DocTemplateProcessorTest extends TestCase
         $templateDir = $this->tempDir . '/templates';
         mkdir($templateDir);
         
-        $templateContent = "#! target: output.md\n#! claude-command-target: command.md\n#! claude-command-prompt: Custom prompt\n\nHello World";
+        $templateContent = "---\ntarget: output.md\nclaude-command-target: command.md\nclaude-command-prompt: Custom prompt\n---\n\nHello World";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         iterator_to_array($processor->processTemplates($templateDir));
@@ -226,7 +226,7 @@ final class DocTemplateProcessorTest extends TestCase
         $templateDir = $this->tempDir . '/templates';
         mkdir($templateDir);
         
-        $templateContent = "#! target: output.md\n#! claude-command-target: command1.md\n#! claude-command-target: command2.md\n#! claude-command-prompt: Test prompt\n\nHello World";
+        $templateContent = "---\ntarget: output.md\nclaude-command-target: command1.md\nclaude-command-target: command2.md\nclaude-command-prompt: Test prompt\n---\n\nHello World";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         iterator_to_array($processor->processTemplates($templateDir));
@@ -256,7 +256,7 @@ final class DocTemplateProcessorTest extends TestCase
         $templateDir = $this->tempDir . '/templates';
         mkdir($templateDir);
         
-        $templateContent = "#! target: output.md\n#! claude-command-target: command.md\n#! claude-command-prompt: Prompt 1\n#! claude-command-prompt: Prompt 2\n\nHello World";
+        $templateContent = "---\ntarget: output.md\nclaude-command-target: command.md\nclaude-command-prompt: Prompt 1\nclaude-command-prompt: Prompt 2\n---\n\nHello World";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         $this->expectException(LogicException::class);
@@ -275,7 +275,7 @@ final class DocTemplateProcessorTest extends TestCase
         $templateDir = $this->tempDir . '/templates';
         mkdir($templateDir);
         
-        $templateContent = "#! target: output.md\n#! claude-command-target: command.md\n\nHello World";
+        $templateContent = "---\ntarget: output.md\nclaude-command-target: command.md\n---\n\nHello World";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         $this->expectException(LogicException::class);
@@ -294,7 +294,7 @@ final class DocTemplateProcessorTest extends TestCase
         $templateDir = $this->tempDir . '/templates';
         mkdir($templateDir);
         
-        $templateContent = "#! target: output.md\n#! claude-command-prompt: Test prompt\n\nHello World";
+        $templateContent = "---\ntarget: output.md\nclaude-command-prompt: Test prompt\n---\n\nHello World";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         iterator_to_array($processor->processTemplates($templateDir));
@@ -315,7 +315,7 @@ final class DocTemplateProcessorTest extends TestCase
         $templateDir = $this->tempDir . '/templates';
         mkdir($templateDir);
         
-        $templateContent = "#! target: output.md\n\n{{ dump: NonExistentClass }}";
+        $templateContent = "---\ntarget: output.md\n---\n\n{{ dump: NonExistentClass }}";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         $this->expectException(LogicException::class);
@@ -329,7 +329,7 @@ final class DocTemplateProcessorTest extends TestCase
         $templateDir = $this->tempDir . '/templates';
         mkdir($templateDir);
         
-        $templateContent = "#! target: output.md\n\n{{ print: NonExistentClass }}";
+        $templateContent = "---\ntarget: output.md\n---\n\n{{ print: NonExistentClass }}";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         $this->expectException(LogicException::class);
@@ -343,7 +343,7 @@ final class DocTemplateProcessorTest extends TestCase
         $templateDir = $this->tempDir . '/templates';
         mkdir($templateDir);
         
-        $templateContent = "#! target: output.md\n\n{{ include: non-existent.md }}";
+        $templateContent = "---\ntarget: output.md\n---\n\n{{ include: non-existent.md }}";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         $this->expectException(LogicException::class);
@@ -363,7 +363,7 @@ final class DocTemplateProcessorTest extends TestCase
         $includeContent = "Include start\n{{ include: nested.md }}\nInclude end";
         file_put_contents($templateDir . '/include.md', $includeContent);
         
-        $templateContent = "#! target: output.md\n\n{{ include: include.md }}";
+        $templateContent = "---\ntarget: output.md\n---\n\n{{ include: include.md }}";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         iterator_to_array($this->processor->processTemplates($templateDir));
@@ -379,7 +379,7 @@ final class DocTemplateProcessorTest extends TestCase
         $templateDir = $this->tempDir . '/templates';
         mkdir($templateDir);
         
-        $templateContent = "#! target: output.md\n\n{{ dump: " . DocTemplateProcessor::class . " }}";
+        $templateContent = "---\ntarget: output.md\n---\n\n{{ dump: " . DocTemplateProcessor::class . " }}";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         iterator_to_array($this->processor->processTemplates($templateDir));
@@ -398,7 +398,7 @@ final class DocTemplateProcessorTest extends TestCase
         $templateDir = $this->tempDir . '/templates';
         mkdir($templateDir);
         
-        $templateContent = "#! target: output.md\n\n{{ dump: " . DocTemplateProcessor::class . ", \"public,private\" }}";
+        $templateContent = "---\ntarget: output.md\n---\n\n{{ dump: " . DocTemplateProcessor::class . ", \"public,private\" }}";
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         iterator_to_array($this->processor->processTemplates($templateDir));
