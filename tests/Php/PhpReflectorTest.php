@@ -2,7 +2,7 @@
 
 namespace Tests\Php;
 
-use LogicException;
+use ReflectionClassConstant;
 use ReflectionMethod;
 use ReflectionProperty;
 use Shredio\DocsGenerator\Php\PhpReflector;
@@ -211,6 +211,147 @@ function testFunction() {}';
         $this->assertStringContainsString('class SampleBaseClass', $signature);
         $this->assertStringNotContainsString('extends', $signature);
         $this->assertStringContainsString('public function baseMethod()', $signature);
+    }
+
+    public function testGetClassSignatureWithPublicPropertiesOnly(): void
+    {
+        $signature = PhpReflector::getClassSignature(
+            SampleClass::class,
+            [],
+            true,
+            false,
+            ReflectionMethod::IS_PUBLIC,
+            ReflectionProperty::IS_PUBLIC,
+            ReflectionClassConstant::IS_PUBLIC
+        );
+        
+        $this->assertStringContainsString('public readonly string $publicProperty', $signature);
+        $this->assertStringNotContainsString('private string $privateProperty', $signature);
+        $this->assertStringNotContainsString('protected string $protectedProperty', $signature);
+    }
+
+    public function testGetClassSignatureWithAllProperties(): void
+    {
+        $signature = PhpReflector::getClassSignature(
+            SampleClass::class,
+            [],
+            true,
+            false,
+            ReflectionMethod::IS_PUBLIC,
+            ReflectionProperty::IS_PUBLIC | ReflectionProperty::IS_PRIVATE | ReflectionProperty::IS_PROTECTED,
+            ReflectionClassConstant::IS_PUBLIC
+        );
+        
+        $this->assertStringContainsString('public readonly string $publicProperty', $signature);
+        $this->assertStringContainsString('private string $privateProperty', $signature);
+        $this->assertStringContainsString('protected string $protectedProperty', $signature);
+    }
+
+    public function testGetClassSignatureWithPrivatePropertiesOnly(): void
+    {
+        $signature = PhpReflector::getClassSignature(
+            SampleClass::class,
+            [],
+            true,
+            false,
+            ReflectionMethod::IS_PUBLIC,
+            ReflectionProperty::IS_PRIVATE,
+            ReflectionClassConstant::IS_PUBLIC
+        );
+        
+        $this->assertStringNotContainsString('public readonly string $publicProperty', $signature);
+        $this->assertStringContainsString('private string $privateProperty', $signature);
+        $this->assertStringNotContainsString('protected string $protectedProperty', $signature);
+    }
+
+    public function testGetClassSignatureWithProtectedPropertiesOnly(): void
+    {
+        $signature = PhpReflector::getClassSignature(
+            SampleClass::class,
+            [],
+            true,
+            false,
+            ReflectionMethod::IS_PUBLIC,
+            ReflectionProperty::IS_PROTECTED,
+            ReflectionClassConstant::IS_PUBLIC
+        );
+        
+        $this->assertStringNotContainsString('public readonly string $publicProperty', $signature);
+        $this->assertStringNotContainsString('private string $privateProperty', $signature);
+        $this->assertStringContainsString('protected string $protectedProperty', $signature);
+    }
+
+    public function testGetClassSignatureWithPublicConstantsOnly(): void
+    {
+        $signature = PhpReflector::getClassSignature(
+            SampleClass::class,
+            [],
+            true,
+            false,
+            ReflectionMethod::IS_PUBLIC,
+            ReflectionProperty::IS_PUBLIC,
+            ReflectionClassConstant::IS_PUBLIC
+        );
+        
+        $this->assertStringContainsString('public const PUBLIC_CONSTANT = \'test\'', $signature);
+        $this->assertStringNotContainsString('private const PRIVATE_CONSTANT', $signature);
+    }
+
+    public function testGetClassSignatureWithAllConstants(): void
+    {
+        $signature = PhpReflector::getClassSignature(
+            SampleClass::class,
+            [],
+            true,
+            false,
+            ReflectionMethod::IS_PUBLIC,
+            ReflectionProperty::IS_PUBLIC,
+            ReflectionClassConstant::IS_PUBLIC | ReflectionClassConstant::IS_PRIVATE
+        );
+        
+        $this->assertStringContainsString('public const PUBLIC_CONSTANT = \'test\'', $signature);
+        $this->assertStringContainsString('private const PRIVATE_CONSTANT = \'private\'', $signature);
+    }
+
+    public function testGetClassSignatureWithPrivateConstantsOnly(): void
+    {
+        $signature = PhpReflector::getClassSignature(
+            SampleClass::class,
+            [],
+            true,
+            false,
+            ReflectionMethod::IS_PUBLIC,
+            ReflectionProperty::IS_PUBLIC,
+            ReflectionClassConstant::IS_PRIVATE
+        );
+        
+        $this->assertStringNotContainsString('public const PUBLIC_CONSTANT', $signature);
+        $this->assertStringContainsString('private const PRIVATE_CONSTANT = \'private\'', $signature);
+    }
+
+    public function testGetClassSignatureWithCombinedVisibilityFilters(): void
+    {
+        $signature = PhpReflector::getClassSignature(
+            SampleClass::class,
+            [],
+            true,
+            false,
+            ReflectionMethod::IS_PRIVATE | ReflectionMethod::IS_PROTECTED,
+            ReflectionProperty::IS_PRIVATE | ReflectionProperty::IS_PROTECTED,
+            ReflectionClassConstant::IS_PRIVATE
+        );
+        
+        // Should not include public items
+        $this->assertStringNotContainsString('public readonly string $publicProperty', $signature);
+        $this->assertStringNotContainsString('public const PUBLIC_CONSTANT', $signature);
+        $this->assertStringNotContainsString('public function publicMethod()', $signature);
+        
+        // Should include private and protected items
+        $this->assertStringContainsString('private string $privateProperty', $signature);
+        $this->assertStringContainsString('protected string $protectedProperty', $signature);
+        $this->assertStringContainsString('private const PRIVATE_CONSTANT = \'private\'', $signature);
+        $this->assertStringContainsString('private function privateMethod()', $signature);
+        $this->assertStringContainsString('protected function protectedMethod()', $signature);
     }
 }
 
