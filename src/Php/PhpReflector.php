@@ -21,8 +21,12 @@ final readonly class PhpReflector
 {
 
 	/**
+	 * Generates a signature representation of a PHP class, interface, or trait.
+	 * 
 	 * @param class-string $className
 	 * @param list<string> $excludeMethods
+	 * @param bool $shortDescription when true, extracts only first sentence from descriptions and includes only @var/@param/@return for array types; when false, preserves full documentation
+	 * @param bool $nested whether to include inherited properties, methods and constants from traits
 	 */
 	public static function getClassSignature(
 		string $className,
