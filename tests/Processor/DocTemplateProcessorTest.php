@@ -347,7 +347,7 @@ final class DocTemplateProcessorTest extends TestCase
         file_put_contents($templateDir . '/test.md', $templateContent);
         
         $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('File "' . $templateDir . '/non-existent.md" does not exist.');
+        $this->expectExceptionMessage('File "' . FileSystem::normalizePath($templateDir) . '/non-existent.md" does not exist.');
         
         iterator_to_array($this->processor->processTemplates($templateDir));
     }

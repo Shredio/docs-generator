@@ -20,7 +20,7 @@ final class ContextDocTemplateCommand implements DocTemplateCommandInterface
 	private array $stack = [];
 
 	public function __construct(
-		private string $description = self::DefaultDescription,
+		private readonly string $description = self::DefaultDescription,
 	)
 	{
 		$this->dumpCommand = new DumpClassDocTemplateCommand();

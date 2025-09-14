@@ -86,9 +86,15 @@ final class MarkdownHeaderParser
 
 				if (is_array($decoded)) {
 					foreach ($decoded as $item) {
+						if (!is_scalar($item) && $item !== null) {
+							throw new \LogicException('Header array items must be scalar or null.');
+						}
 						$return[] = new MarkdownHeader($header->name, (string) $item);
 					}
 				} else {
+					if (!is_scalar($decoded) && $decoded !== null) {
+						throw new \LogicException('Header value must be scalar or null.');
+					}
 					$return[] = new MarkdownHeader($header->name, (string) $decoded);
 				}
 			} else {

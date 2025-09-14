@@ -91,6 +91,10 @@ final readonly class PhpReflector
 				continue;
 			}
 
+			if (str_starts_with($reflectionProperty->getName(), '_')) {
+				continue;
+			}
+
 			if (self::shouldIgnoreDocComment($reflectionProperty->getDocComment())) {
 				continue;
 			}
@@ -124,6 +128,10 @@ final readonly class PhpReflector
 				continue;
 			}
 
+			if (str_starts_with($reflectionConstant->getName(), '_')) {
+				continue;
+			}
+
 			if (self::shouldIgnoreDocComment($reflectionConstant->getDocComment())) {
 				continue;
 			}
@@ -144,6 +152,10 @@ final readonly class PhpReflector
 			}
 
 			if (in_array($reflectionMethod->getName(), $excludeMethods, true)) {
+				continue;
+			}
+
+			if (str_starts_with($reflectionMethod->getName(), '_')) {
 				continue;
 			}
 

@@ -170,6 +170,10 @@ final class MarkdownHeaderParserTest extends TestCase
         $this->assertSame('# Content', $parsed->content);
     }
 
+	/**
+	 * @param list<string> $lines
+	 * @return ParsedMarkdownHeaders
+	 */
 	private function parse(array $lines): ParsedMarkdownHeaders
 	{
 		$code = "---\n";

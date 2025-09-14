@@ -45,6 +45,8 @@ final class GenerateDocsCommand
 				$io->writeln($createdFile);
 			}
 
+			$processor->finish($this->rootDir);
+
 			return Command::SUCCESS;
 		} catch (LogicException $e) {
 			$file = $e->sourceFile;

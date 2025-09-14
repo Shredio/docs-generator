@@ -10,8 +10,10 @@ use Shredio\DocsGenerator\Markdown\MarkdownHeader;
 use Shredio\DocsGenerator\Markdown\MarkdownHeaderParser;
 use Shredio\DocsGenerator\Markdown\MarkdownSnippetParser;
 use Shredio\DocsGenerator\Markdown\MarkdownVariableParser;
+use Shredio\DocsGenerator\Processor\Command\ComposerPackageDocTemplateCommand;
 use Shredio\DocsGenerator\Processor\Command\ContextDocTemplateCommand;
 use Shredio\DocsGenerator\Processor\Command\DumpClassDocTemplateCommand;
+use Shredio\DocsGenerator\Processor\Command\ImportDocTemplateCommand;
 use Shredio\DocsGenerator\Processor\Command\IncludeDocTemplateCommand;
 use Shredio\DocsGenerator\Processor\Command\IncludeOnceDocTemplateCommand;
 use Shredio\DocsGenerator\Processor\Command\PrintClassCodeBlockDocTemplateCommand;
@@ -22,6 +24,12 @@ final class DocTemplateProcessor
 
 	/** @var array<string, DocTemplateCommandInterface> */
 	private array $commands = [];
+
+	/** @var array<string, string> */
+	private array $cache = [];
+
+	/** @var array<string, bool> */
+	private array $processing = [];
 
 	public function __construct(
 		private readonly string $rootDir,
@@ -58,6 +66,8 @@ final class DocTemplateProcessor
 	{
 		$this->addCommand(new DumpClassDocTemplateCommand());
 		$this->addCommand(new ContextDocTemplateCommand());
+		$this->addCommand(new ComposerPackageDocTemplateCommand());
+		$this->addCommand(new ImportDocTemplateCommand());
 		$this->addCommand(new IncludeDocTemplateCommand($this));
 		$this->addCommand(new IncludeOnceDocTemplateCommand($this));
 		$this->addCommand(new PrintClassDocTemplateCommand());
@@ -66,40 +76,90 @@ final class DocTemplateProcessor
 
 	/**
 	 * @param array<string, string> $parameters
+	 */
+	private function parseFile(
+		string $filePath,
+		string $targetDir,
+		array $parameters,
+		?string $contentToProcess = null,
+	): string
+	{
+		$filePath = FileSystem::normalizePath($filePath);
+		if (isset($this->cache[$filePath])) {
+			return $this->cache[$filePath];
+		}
+		if (isset($this->processing[$filePath])) {
+			throw new LogicException(sprintf('Circular inclusion detected for file "%s".', $filePath));
+		}
+
+		$this->processing[$filePath] = true;
+		$context = new DocTemplateContext(
+			dirname($filePath),
+			$this->rootDir,
+			$targetDir,
+			$parameters,
+			$this->parseFile(...),
+		);
+
+		$parseHeaders = $contentToProcess === null;
+		$contentToProcess ??= FileSystem::read($filePath);
+		$contents = $this->parseContent($contentToProcess, $context, $parameters, $parseHeaders);
+
+		foreach ($this->commands as $command) {
+			$contents = $command->after($contents);
+		}
+		foreach ($this->commands as $command) {
+			$command->reset();
+		}
+
+		unset($this->processing[$filePath]);
+
+		return trim($contents);
+	}
+
+	/**
+	 * @param array<string, string> $parameters
 	 * @return iterable<string>
 	 */
 	private function parseFiles(Finder $finder, array $parameters): iterable
 	{
+		$knownTargets = [];
 		foreach ($finder as $file) {
-			foreach ($this->commands as $command) {
-				$command->reset();
+			$firstTarget = MarkdownHeaderParser::parse($file->read())->getFirstHeaderByName('target')?->value;
+			if ($firstTarget !== null && !str_contains($firstTarget, '*')) {
+				$knownTargets[$file->getPathname()] = FileSystem::joinPaths($this->rootDir, $firstTarget);
 			}
+		}
 
+		foreach ($this->commands as $command) {
+			if ($command instanceof ImportDocTemplateCommand) {
+				$command->setKnownTargets($knownTargets);
+			}
+		}
+
+		foreach ($finder as $file) {
 			try {
 				$fileContents = $file->read();
-
 				// Parse markdown headers and get content without headers
 				$parsedMarkdown = MarkdownHeaderParser::parse($fileContents);
-
-				$context = new DocTemplateContext($file->getPath(), $this->rootDir, $parameters);
-				$contents = $this->parseContent($parsedMarkdown->content, $context, $parameters, false);
-
-				foreach ($this->commands as $command) {
-					$contents = $command->after($contents);
-				}
-
-				$contents = trim($contents);
+				$createContent = function (string $targetDir) use ($parameters, $parsedMarkdown, $file): string {
+					return $this->parseFile($file->getPathname(), $targetDir, $parameters, $parsedMarkdown->content);
+				};
 
 				$targetPaths = $this->getTargetPaths($parsedMarkdown->headers);
 
 				foreach ($targetPaths as $targetPath) {
-					FileSystem::write($targetPath, $contents . "\n");
+					FileSystem::write($targetPath, $createContent(dirname($targetPath)) . "\n");
 					yield $targetPath;
 				}
 
 				// Process claude-command-target headers when claudeCommandsDir is set
 				if ($this->claudeCommandsDir !== null) {
-					yield from $this->processClaudeCommandTargets($parsedMarkdown->headers, $contents, $file->getBasename());
+					yield from $this->processClaudeCommandTargets(
+						$parsedMarkdown->headers,
+						$createContent($this->rootDir . '/' . ltrim($this->claudeCommandsDir, '/')),
+						$file->getBasename(),
+					);
 				}
 			} catch (LogicException $e) {
 				$realPath = $file->getRealPath();
@@ -146,7 +206,7 @@ final class DocTemplateProcessor
 		$path = substr($pattern, 0, $pos);
 		$suffix = substr($pattern, $pos + 1);
 
-		foreach (Finder::findDirectories('*')->in($path) as $directory) {
+		foreach (Finder::findDirectories('*')->in($this->rootDir . '/' . $path) as $directory) {
 			yield $directory->getPathname() . $suffix;
 		}
 	}
@@ -238,7 +298,7 @@ final class DocTemplateProcessor
 				if (!isset($parameters[$variable->name])) {
 					throw new LogicException(sprintf('Variable "%s" not found in parameters.', $variable->name));
 				}
-				
+
 				$contents = substr_replace(
 					$contents,
 					$parameters[$variable->name],
@@ -275,7 +335,7 @@ final class DocTemplateProcessor
 	private function loadParametersFromFile(string $directory, array $parameters): array
 	{
 		$parametersFile = $directory . '/docs-parameters.json';
-		
+
 		if (!file_exists($parametersFile)) {
 			return $parameters;
 		}
@@ -283,12 +343,21 @@ final class DocTemplateProcessor
 		$fileContents = FileSystem::read($parametersFile);
 		/** @var array<string, string>|null $fileParameters */
 		$fileParameters = json_decode($fileContents, true);
-		
+
 		if (!is_array($fileParameters)) {
 			throw new LogicException(sprintf('Invalid JSON in parameters file "%s".', $parametersFile));
 		}
-		
+
 		return array_merge($fileParameters, $parameters);
+	}
+
+	public function finish(string $rootDir): void
+	{
+		foreach ($this->commands as $command) {
+			if ($command instanceof DocTemplateFinishCommand) {
+				$command->finish($rootDir);
+			}
+		}
 	}
 
 }
