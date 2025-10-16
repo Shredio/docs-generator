@@ -4,12 +4,15 @@ namespace Shredio\DocsGenerator\Php;
 
 use LogicException;
 use Nette\PhpGenerator\ClassType;
+use Nette\PhpGenerator\EnumType;
 use Nette\PhpGenerator\Factory;
 use Nette\PhpGenerator\Helpers;
 use Nette\PhpGenerator\PhpNamespace;
 use Nette\PhpGenerator\Printer;
 use ReflectionClass;
 use ReflectionClassConstant;
+use ReflectionEnum;
+use ReflectionEnumBackedCase;
 use ReflectionIntersectionType;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -84,44 +87,74 @@ final readonly class PhpReflector
 			!$nested && $reflectionClass->isTrait() ? $getNames(self::getTraitMethods($reflectionClass, $methodsToPrint)) : [],
 		);
 
-		foreach ($reflectionClass->getProperties($propertiesToPrint) as $reflectionProperty) {
-			if (!$nested && $reflectionProperty->getDeclaringClass()->name !== $reflectionClass->name) {
-				continue;
-			}
+		// Enums cannot have properties, only cases, constants, and methods
+		if (!$reflectionClass->isEnum()) {
+			foreach ($reflectionClass->getProperties($propertiesToPrint) as $reflectionProperty) {
+				if (!$nested && $reflectionProperty->getDeclaringClass()->name !== $reflectionClass->name) {
+					continue;
+				}
 
-			if (in_array($reflectionProperty->getName(), $excludeProperties, true)) {
-				continue;
-			}
+				if (in_array($reflectionProperty->getName(), $excludeProperties, true)) {
+					continue;
+				}
 
-			if (str_starts_with($reflectionProperty->getName(), '_')) {
-				continue;
-			}
+				if (str_starts_with($reflectionProperty->getName(), '_')) {
+					continue;
+				}
 
-			if (self::shouldIgnoreDocComment($reflectionProperty->getDocComment())) {
-				continue;
-			}
+				if (self::shouldIgnoreDocComment($reflectionProperty->getDocComment())) {
+					continue;
+				}
 
-			$property = $generatorFactory->fromPropertyReflection($reflectionProperty);
-			$property->setAttributes([]);
+				$property = $generatorFactory->fromPropertyReflection($reflectionProperty);
+				$property->setAttributes([]);
 
-			$comment = null;
-			$propertyComment = $property->getComment();
+				$comment = null;
+				$propertyComment = $property->getComment();
 
-			if ($propertyComment !== null) {
-				if ($shortDescription && self::typeNeedComment($reflectionProperty->getType())) {
-					if (preg_match('#@var\s+(.+?)$#m', $propertyComment, $matches)) {
-						$comment = trim($matches[0]) . "\n";
+				if ($propertyComment !== null) {
+					if ($shortDescription && self::typeNeedComment($reflectionProperty->getType())) {
+						if (preg_match('#@var\s+(.+?)$#m', $propertyComment, $matches)) {
+							$comment = trim($matches[0]) . "\n";
+						}
+					} else if (!$shortDescription) {
+						$comment = $propertyComment;
 					}
-				} else if (!$shortDescription) {
-					$comment = $propertyComment;
+				}
+
+				$property->setComment($comment === null ? null : trim($comment));
+				$class->addMember($property);
+			}
+		}
+
+		// Handle enum cases separately for enums
+		if ($reflectionClass->isEnum()) {
+			assert($class instanceof EnumType);
+			$reflectionEnum = new ReflectionEnum($className);
+
+			// Set backing type for backed enums
+			if ($reflectionEnum->isBacked()) {
+				$backingType = $reflectionEnum->getBackingType();
+				if ($backingType instanceof ReflectionNamedType) {
+					$class->setType($backingType->getName());
 				}
 			}
 
-			$property->setComment($comment === null ? null : trim($comment));
-			$class->addMember($property);
+			// Add enum cases
+			foreach ($reflectionEnum->getCases() as $enumCase) {
+				$case = $class->addCase($enumCase->getName());
+				if ($enumCase instanceof ReflectionEnumBackedCase) {
+					$case->setValue($enumCase->getBackingValue());
+				}
+			}
 		}
 
 		foreach ($reflectionClass->getReflectionConstants($classConstantsToPrint) as $reflectionConstant) {
+			// Skip enum cases as they are handled separately
+			if ($reflectionConstant->isEnumCase()) {
+				continue;
+			}
+
 			if (!$nested && $reflectionConstant->getDeclaringClass()->name !== $reflectionClass->name) {
 				continue;
 			}

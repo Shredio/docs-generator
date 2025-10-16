@@ -339,18 +339,51 @@ function testFunction() {}';
             ReflectionProperty::IS_PRIVATE | ReflectionProperty::IS_PROTECTED,
             ReflectionClassConstant::IS_PRIVATE
         );
-        
+
         // Should not include public items
         $this->assertStringNotContainsString('public readonly string $publicProperty', $signature);
         $this->assertStringNotContainsString('public const PUBLIC_CONSTANT', $signature);
         $this->assertStringNotContainsString('public function publicMethod()', $signature);
-        
+
         // Should include private and protected items
         $this->assertStringContainsString('private string $privateProperty', $signature);
         $this->assertStringContainsString('protected string $protectedProperty', $signature);
         $this->assertStringContainsString('private const PRIVATE_CONSTANT = \'private\'', $signature);
         $this->assertStringContainsString('private function privateMethod()', $signature);
         $this->assertStringContainsString('protected function protectedMethod()', $signature);
+    }
+
+    public function testGetClassSignatureEnum(): void
+    {
+        $signature = PhpReflector::getClassSignature(EndpointMethod::class);
+
+        $this->assertStringContainsString('enum EndpointMethod', $signature);
+        $this->assertStringContainsString('case Get;', $signature);
+        $this->assertStringContainsString('case Post;', $signature);
+        $this->assertStringContainsString('case Patch;', $signature);
+        $this->assertStringContainsString('case Delete;', $signature);
+        $this->assertStringContainsString('public function getHttpMethod()', $signature);
+    }
+
+    public function testGetClassSignatureBackedEnum(): void
+    {
+        $signature = PhpReflector::getClassSignature(Status::class);
+
+        $this->assertStringContainsString('enum Status: string', $signature);
+        $this->assertStringContainsString('case Active = \'active\';', $signature);
+        $this->assertStringContainsString('case Inactive = \'inactive\';', $signature);
+        $this->assertStringContainsString('case Pending = \'pending\';', $signature);
+        $this->assertStringContainsString('public function label()', $signature);
+    }
+
+    public function testGetClassSignatureEnumWithConstants(): void
+    {
+        $signature = PhpReflector::getClassSignature(EnumWithConstants::class);
+
+        $this->assertStringContainsString('enum EnumWithConstants', $signature);
+        $this->assertStringContainsString('case First;', $signature);
+        $this->assertStringContainsString('case Second;', $signature);
+        $this->assertStringContainsString('public const MaxValue = 100', $signature);
     }
 }
 
@@ -498,3 +531,52 @@ final class SampleChildClass extends SampleBaseClass
     {
     }
 }
+
+enum EndpointMethod
+{
+
+	case Get;
+	case Post;
+	case Patch;
+	case Delete;
+
+	public function getHttpMethod(): string
+	{
+		return match ($this) {
+			self::Get => 'GET',
+			self::Post => 'POST',
+			self::Patch => 'PATCH',
+			self::Delete => 'DELETE',
+		};
+	}
+
+}
+
+enum Status: string
+{
+
+	case Active = 'active';
+	case Inactive = 'inactive';
+	case Pending = 'pending';
+
+	public function label(): string
+	{
+		return match ($this) {
+			self::Active => 'Active',
+			self::Inactive => 'Inactive',
+			self::Pending => 'Pending',
+		};
+	}
+
+}
+
+enum EnumWithConstants
+{
+
+	case First;
+	case Second;
+
+	public const MaxValue = 100;
+
+}
+
