@@ -54,8 +54,7 @@ final class PhpReflectorTest extends TestCase
     {
         $signature = PhpReflector::getClassSignature(SampleInterface::class);
         
-        // Note: The implementation generates 'class' for interfaces, not 'interface'
-        $this->assertStringContainsString('class SampleInterface', $signature);
+        $this->assertStringContainsString('interface SampleInterface', $signature);
         $this->assertStringContainsString('function interfaceMethod()', $signature);
     }
 

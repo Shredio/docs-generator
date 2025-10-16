@@ -43,9 +43,11 @@ final readonly class PhpReflector
 		$namespace = new PhpNamespace($reflectionClass->getNamespaceName());
 
 		if ($reflectionClass->isInterface()) {
-			$class = $namespace->addClass($reflectionClass->getShortName());
+			$class = $namespace->addInterface($reflectionClass->getShortName());
 		} else if ($reflectionClass->isTrait()) {
 			$class = $namespace->addTrait($reflectionClass->getShortName());
+		} else if ($reflectionClass->isEnum()) {
+			$class = $namespace->addEnum($reflectionClass->getShortName());
 		} else {
 			$class = $namespace->addClass($reflectionClass->getShortName());
 			$class->setFinal($reflectionClass->isFinal() && $class->isClass());
