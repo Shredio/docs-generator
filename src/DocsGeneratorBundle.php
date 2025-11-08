@@ -20,7 +20,6 @@ final class DocsGeneratorBundle extends AbstractBundle
 			->args([
 				$config['root_dir'],
 				$config['source_dir'],
-				$config['claude_commands_dir'] ?? null,
 			])
 			->tag('console.command');
 	}

@@ -2,10 +2,8 @@
 
 namespace Shredio\DocsGenerator\Command;
 
-use Shredio\DocsGenerator\Command\ConsoleDocTemplateCommand;
-use Shredio\DocsGenerator\Exception\LogicException;
-use Shredio\DocsGenerator\Processor\Command\InlineDocTemplateCommand;
-use Shredio\DocsGenerator\Processor\DocTemplateProcessor;
+use Shredio\DocsGenerator\Exception\GeneratingFailedException;
+use Shredio\DocsGenerator\Generator\DocTemplateGenerator;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -18,47 +16,23 @@ final class GenerateDocsCommand
 	public function __construct(
 		private readonly string $rootDir,
 		private readonly string $sourceDir,
-		private readonly ?string $claudeCommandsDir = null,
 	)
 	{
 	}
 
 	public function __invoke(SymfonyStyle $io, Application $application): int
 	{
+		$generator = new DocTemplateGenerator($this->rootDir);
+
 		try {
-			$processor = new DocTemplateProcessor($this->rootDir, $this->claudeCommandsDir);
-			$processor->addCommand(new InlineDocTemplateCommand('symfony-command', static function (DocTemplateContext $context, array $args) use ($application): string {
-				$name = $args[0];
-				$command = $application->get($name);
-				$description = trim($command->getDescription());
-
-				if ($description === '') {
-					throw new LogicException(sprintf('Command "%s" does not have a description.', $name));
-				}
-
-				return sprintf('**%s**: `bin/console %s`', $description, $name);
-			}));
-
-			$directory = $this->rootDir . '/' . ltrim($this->sourceDir, '/');
-			
-			foreach ($processor->processTemplates($directory) as $createdFile) {
-				$io->writeln($createdFile);
-			}
-
-			$processor->finish($this->rootDir);
-
-			return Command::SUCCESS;
-		} catch (LogicException $e) {
-			$file = $e->sourceFile;
-
-			if ($file !== null) {
-				$io->error(sprintf('Error in file "%s": %s', $file, $e->getMessage()));
-			} else {
-				$io->error($e->getMessage());
-			}
+			$generator->generate($this->sourceDir);
+		} catch (GeneratingFailedException $e) {
+			$io->error($e->getMessage());
 
 			return Command::FAILURE;
 		}
+
+		return Command::SUCCESS;
 	}
 
 

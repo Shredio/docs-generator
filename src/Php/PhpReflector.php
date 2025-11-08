@@ -130,7 +130,7 @@ final readonly class PhpReflector
 		// Handle enum cases separately for enums
 		if ($reflectionClass->isEnum()) {
 			assert($class instanceof EnumType);
-			$reflectionEnum = new ReflectionEnum($className);
+			$reflectionEnum = new ReflectionEnum($className); // @phpstan-ignore argument.type
 
 			// Set backing type for backed enums
 			if ($reflectionEnum->isBacked()) {

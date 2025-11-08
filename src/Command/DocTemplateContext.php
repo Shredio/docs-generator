@@ -42,7 +42,7 @@ final readonly class DocTemplateContext
 		return ($this->parse)($filePath, $targetDir, $this->parameters, $contentToProcess);
 	}
 
-	public function getFileImport(string $path): string
+	public function getFileImportFromRoot(string $path): string
 	{
 		if (str_starts_with($path, '/')) {
 			throw new LogicException(sprintf('Path "%s" is not relative.', $path));
@@ -63,7 +63,7 @@ final readonly class DocTemplateContext
 		}
 
 		$relative = substr($path, strlen($rootDir));
-		$relative = rtrim($relative, '/');
+		$relative = trim($relative, '/');
 		if ($relative === '') {
 			return 0;
 		}
