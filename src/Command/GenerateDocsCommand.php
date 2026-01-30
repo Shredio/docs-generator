@@ -2,6 +2,7 @@
 
 namespace Shredio\DocsGenerator\Command;
 
+use Nette\Utils\FileSystem;
 use Shredio\DocsGenerator\Exception\GeneratingFailedException;
 use Shredio\DocsGenerator\Generator\DocTemplateGenerator;
 use Symfony\Component\Console\Application;
@@ -10,22 +11,26 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand('docs:generate')]
-final class GenerateDocsCommand
+final readonly class GenerateDocsCommand
 {
 
 	public function __construct(
-		private readonly string $rootDir,
-		private readonly string $sourceDir,
+		private string $rootDir,
+		private string $sourceDir,
+		private ?string $docsDir,
 	)
 	{
 	}
 
 	public function __invoke(SymfonyStyle $io, Application $application): int
 	{
-		$generator = new DocTemplateGenerator($this->rootDir);
+		$generator = new DocTemplateGenerator(
+			$this->rootDir,
+			$this->docsDir === null ? null : FileSystem::resolvePath($this->rootDir, $this->docsDir),
+		);
 
 		try {
-			$generator->generate($this->sourceDir);
+			$generator->generate(FileSystem::resolvePath($this->rootDir, $this->sourceDir));
 		} catch (GeneratingFailedException $e) {
 			$io->error($e->getMessage());
 

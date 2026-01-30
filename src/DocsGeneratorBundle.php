@@ -20,6 +20,7 @@ final class DocsGeneratorBundle extends AbstractBundle
 			->args([
 				$config['root_dir'],
 				$config['source_dir'],
+				$config['docs_dir'],
 			])
 			->tag('console.command');
 	}
@@ -33,8 +34,8 @@ final class DocsGeneratorBundle extends AbstractBundle
 					->info('Root directory for the documentation generation.')
 					->cannotBeEmpty()
 					->end()
-				->scalarNode('source_dir')->defaultValue('/')->end()
-				->scalarNode('claude_commands_dir')->defaultNull()->end()
+				->scalarNode('source_dir')->cannotBeEmpty()->end()
+				->scalarNode('docs_dir')->defaultNull()->end()
 			->end();
 	}
 }

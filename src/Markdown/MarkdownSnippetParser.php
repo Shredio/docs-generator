@@ -47,18 +47,15 @@ final class MarkdownSnippetParser
 
         self::skipWhitespace($text, $position, $length);
 
-        if ($position >= $length || $text[$position] !== ':') {
-            return null;
+        $arguments = [];
+
+        if ($position < $length && $text[$position] === ':') {
+            $position++; // Skip ':'
+
+            self::skipWhitespace($text, $position, $length);
+
+            $arguments = self::parseArguments($text, $position, $length);
         }
-        $position++; // Skip ':'
-
-        self::skipWhitespace($text, $position, $length);
-
-        $arguments = self::parseArguments($text, $position, $length);
-
-		if (!$arguments) {
-			return null;
-		}
 
         self::skipWhitespace($text, $position, $length);
 
@@ -75,7 +72,7 @@ final class MarkdownSnippetParser
     {
         $start = $position;
 
-        while ($position < $length && $text[$position] !== ':' && !ctype_space($text[$position])) {
+        while ($position < $length && $text[$position] !== ':' && $text[$position] !== '}' && !ctype_space($text[$position])) {
             $position++;
         }
 

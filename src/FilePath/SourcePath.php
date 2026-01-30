@@ -36,4 +36,17 @@ final readonly class SourcePath
 		$this->relativePathFromRoot = $relativePathFromRoot;
 	}
 
+	public static function fromRelativeOrAbsolute(string $path, RootPath $rootPath): self
+	{
+		if ($path === '') {
+			throw new \InvalidArgumentException('Path must not be empty.');
+		}
+
+		if (Path::isAbsolute($path)) {
+			return new self($path, $rootPath);
+		}
+
+		return new self($rootPath->getAbsolutePath($path), $rootPath);
+	}
+
 }

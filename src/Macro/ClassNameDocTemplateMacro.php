@@ -14,6 +14,10 @@ final readonly class ClassNameDocTemplateMacro implements DocTemplateMacro
 
 	public function invoke(DocTemplateMacroContext $context, array $arguments): string
 	{
+		if (count($arguments) !== 1) {
+			throw new MacroException(sprintf('Macro `%s` expects exactly 1 argument, %d given.', $this->getName(), count($arguments)));
+		}
+
 		if (!class_exists($arguments[0]) && !interface_exists($arguments[0]) && !trait_exists($arguments[0])) {
 			throw new MacroException(sprintf('Class %s not found', $arguments[0]));
 		}

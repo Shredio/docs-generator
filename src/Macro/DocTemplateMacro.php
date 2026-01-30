@@ -13,7 +13,7 @@ interface DocTemplateMacro
 	public function getName(): string;
 
 	/**
-	 * @param non-empty-list<string> $arguments
+	 * @param list<string> $arguments
 	 * @throws MacroException
 	 */
 	public function invoke(DocTemplateMacroContext $context, array $arguments): string;

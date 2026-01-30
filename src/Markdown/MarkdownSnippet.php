@@ -5,7 +5,7 @@ namespace Shredio\DocsGenerator\Markdown;
 final readonly class MarkdownSnippet
 {
     /**
-     * @param non-empty-list<string> $arguments
+     * @param list<string> $arguments
      */
     public function __construct(
         public string $name,

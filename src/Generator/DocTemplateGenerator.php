@@ -9,11 +9,14 @@ use ReflectionClass;
 use ReflectionClassConstant;
 use ReflectionMethod;
 use ReflectionProperty;
+use Shredio\DocsGenerator\Collector\CollectedData;
 use Shredio\DocsGenerator\Exception\GeneratingFailedException;
 use Shredio\DocsGenerator\Exception\MacroException;
 use Shredio\DocsGenerator\FilePath\RootPath;
 use Shredio\DocsGenerator\FilePath\SourcePath;
 use Shredio\DocsGenerator\Macro\ClassNameDocTemplateMacro;
+use Shredio\DocsGenerator\Macro\DocsListDocTemplateMacro;
+use Shredio\DocsGenerator\Macro\DocsReferenceDocTemplateMacro;
 use Shredio\DocsGenerator\Macro\DocTemplateMacro;
 use Shredio\DocsGenerator\Macro\DocTemplateMacroContext;
 use Shredio\DocsGenerator\Macro\ModuleNamespaceDocTemplateMacro;
@@ -38,14 +41,20 @@ final class DocTemplateGenerator
 
 	private readonly RootPath $rootPath;
 
+	private readonly ?SourcePath $docsPath;
+
 	/** @var array<non-empty-string, DocTemplateMacro> */
 	private array $macros = [];
 
+	/** @var array<non-empty-string, non-empty-string> relativePath => description */
+	private array $docs = [];
+
 	private ReferenceChecker $referenceChecker;
 
-	public function __construct(string $rootDir)
+	public function __construct(string $rootDir, ?string $docsDir = null)
 	{
 		$this->rootPath = new RootPath($rootDir);
+		$this->docsPath = $docsDir === null ? null : SourcePath::fromRelativeOrAbsolute($docsDir, $this->rootPath);
 		$this->schemaProcessor = TypeSchemaProcessor::createDefault();
 		$this->addMacro(new ClassNameDocTemplateMacro());
 		$this->addMacro(new SubmoduleNamespaceDocTemplateMacro());
@@ -53,6 +62,8 @@ final class DocTemplateGenerator
 		$this->addMacro(new TestModuleNamespaceDocTemplateMacro());
 		$this->addMacro(new TestSubmoduleNamespaceDocTemplateMacro());
 		$this->addMacro(new SkillReferenceDocTemplateMacro());
+		$this->addMacro(new DocsReferenceDocTemplateMacro());
+		$this->addMacro(new DocsListDocTemplateMacro());
 	}
 
 	public function addMacro(DocTemplateMacro $macro): void
@@ -154,12 +165,15 @@ final class DocTemplateGenerator
 	{
 		$s = TypeSchema::get();
 		$schema = $s->arrayShape([
+			'main' => $s->optional($s->bool()),
 			'macros' => $s->optional($s->arrayShape([
 				'disabled' => $s->optional($s->bool()),
 			])),
 		], true);
 
 		$options = $this->processSchema($schema, $frontmatter)['macros'] ?? [];
+		$isMain = $frontmatter['main'] ?? false;
+		$collectedData = $isMain ? CollectedData::create($this->docs, $this->docsPath?->relativePathFromRoot) : null;
 
 		$disabled = $options['disabled'] ?? false;
 		if ($disabled !== true) {
@@ -172,6 +186,7 @@ final class DocTemplateGenerator
 						$replacement = $instance->invoke(new DocTemplateMacroContext(
 							$sourcePath,
 							$this->referenceChecker,
+							$collectedData,
 						), $macro->arguments);
 					} catch (MacroException $exception) {
 						throw new GeneratingFailedException(
@@ -212,6 +227,7 @@ final class DocTemplateGenerator
 			yield from $this->createSkill($content, $sourcePath, $frontmatter);
 			yield from $this->createCommands($content, $sourcePath, $frontmatter);
 			yield from $this->createOutput($content, $sourcePath, $frontmatter);
+			yield from $this->createDocs($content, $sourcePath, $frontmatter);
 		} catch (Throwable $exception) {
 			throw new GeneratingFailedException(sprintf(
 				'Generating files from template "%s" failed: %s',
@@ -306,6 +322,49 @@ final class DocTemplateGenerator
 		}
 
 		yield $values['output']['target'] => $content;
+	}
+
+	/**
+	 * @param mixed[] $frontmatter
+	 * @return iterable<string, string> relative file path => file content
+	 * @throws GeneratingFailedException
+	 */
+	private function createDocs(string $content, SourcePath $sourcePath, array $frontmatter): iterable
+	{
+		$s = TypeSchema::get();
+		$schema = $s->arrayShape([
+			'docs' => $s->optional($s->arrayShape([
+				'target' => $s->nonEmptyString(),
+				'description' => $s->nonEmptyString(),
+			])),
+		], true);
+
+		$values = $this->processSchema($schema, $frontmatter);
+		if (!isset($values['docs'])) {
+			return;
+		}
+
+		if (!str_ends_with($values['docs']['target'], '.md')) {
+			throw new GeneratingFailedException('Docs target must be a markdown file with ".md" extension.');
+		}
+
+		if ($this->docsPath === null) {
+			throw new GeneratingFailedException('Docs base path is not set, cannot create docs.');
+		}
+
+
+		$this->referenceChecker->addDoc($values['docs']['target']);
+
+		yield $this->docsPath->relativePathFromRoot . '/' . ltrim($values['docs']['target'], '/') => $content;
+
+		if (isset($this->docs[$values['docs']['target']])) {
+			throw new GeneratingFailedException(sprintf(
+				'Docs target "%s" is already used for another document.',
+				$values['docs']['target'],
+			));
+		}
+
+		$this->docs[$values['docs']['target']] = $values['docs']['description'];
 	}
 
 	/**
@@ -572,13 +631,13 @@ final class DocTemplateGenerator
 
 	/**
 	 * @param mixed[] $frontmatter
-	 * @return array{priority: int<0, 10>}
+	 * @return array{priority: int<-1, 10>}
 	 *
 	 * @throws GeneratingFailedException
 	 */
 	private function getMetadataFromFrontmatter(array $frontmatter): array
 	{
-		if (!isset($frontmatter['metadata'])) {
+		if (!isset($frontmatter['metadata']) && !isset($frontmatter['main'])) {
 			return [
 				'priority' => 5,
 			];
@@ -589,8 +648,12 @@ final class DocTemplateGenerator
 			'priority' => $t->optional($t->intRange(0, 10)),
 		]);
 
-		$metadata = $this->processSchema($schema, $frontmatter['metadata']);
-		$metadata['priority'] ??= 5;
+		$metadata = $this->processSchema($schema, $frontmatter['metadata'] ?? []);
+		if (isset($frontmatter['main']) && $frontmatter['main']) {
+			$metadata['priority'] = -1; // Lowest priority
+		} else {
+			$metadata['priority'] ??= 5;
+		}
 
 		return $metadata;
 	}
