@@ -436,30 +436,28 @@ final class DocTemplateGenerator
 				continue;
 			}
 
-			if (isset($value['file'])) {
-				// Normal file branch
-				$filePath = $this->rootPath->getAbsolutePath($value['file']);
-				if (!is_file($filePath) || !is_readable($filePath)) {
-					throw new GeneratingFailedException(sprintf('Example file "%s" does not exist or is not readable.', $value['file']));
-				}
-
-				$contents = FileSystem::read($filePath);
-				$suffix = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-				$format = match ($suffix) {
-					'php' => 'php',
-					'js' => 'javascript',
-					'ts' => 'typescript',
-					'md' => 'markdown',
-					'tsp' => 'typespec',
-					default => throw new GeneratingFailedException(sprintf('Unsupported example file extension "%s".', $suffix)),
-				};
-
-				$quotes = '```';
-				while (str_contains($contents, $quotes)) {
-					$quotes .= '`';
-				}
-				$examples[] = $quotes . $format . "\n" . trim($contents) . "\n" . $quotes;
+			// Normal file branch
+			$filePath = $this->rootPath->getAbsolutePath($value['file']);
+			if (!is_file($filePath) || !is_readable($filePath)) {
+				throw new GeneratingFailedException(sprintf('Example file "%s" does not exist or is not readable.', $value['file']));
 			}
+
+			$contents = FileSystem::read($filePath);
+			$suffix = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+			$format = match ($suffix) {
+				'php' => 'php',
+				'js' => 'javascript',
+				'ts' => 'typescript',
+				'md' => 'markdown',
+				'tsp' => 'typespec',
+				default => throw new GeneratingFailedException(sprintf('Unsupported example file extension "%s".', $suffix)),
+			};
+
+			$quotes = '```';
+			while (str_contains($contents, $quotes)) {
+				$quotes .= '`';
+			}
+			$examples[] = $quotes . $format . "\n" . trim($contents) . "\n" . $quotes;
 		}
 
 		$content .= implode("\n\n", $examples);

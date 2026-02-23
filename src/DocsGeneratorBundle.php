@@ -27,8 +27,8 @@ final class DocsGeneratorBundle extends AbstractBundle
 
 	public function configure(DefinitionConfigurator $definition): void
 	{
-		$definition->rootNode() // @phpstan-ignore-line
-			->children()
+		$definition->rootNode()
+			->children() // @phpstan-ignore method.notFound
 				->scalarNode('root_dir')
 					->defaultValue('%kernel.project_dir%')
 					->info('Root directory for the documentation generation.')
