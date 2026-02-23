@@ -85,6 +85,10 @@ final class DocTemplateGenerator
 		// Collect files
 		$filesToProcess = [];
 		foreach (Finder::findFiles('*.md')->from($templatesDirectory) as $file) {
+			if ($file->getBasename() === 'CLAUDE.md') {
+				continue; // Skip Claude.md files
+			}
+
 			$sourcePath = new SourcePath($file->getPathname(), $this->rootPath);
 			$content = $file->read();
 			$frontmatter = MarkdownFrontmatterParser::extract($content);
