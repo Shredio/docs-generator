@@ -1,16 +1,17 @@
 # Shredio Docs Generator
 
-A Symfony bundle for generating structured documentation from markdown templates. Designed primarily for creating AI-consumable documentation like Claude AI Skills, but also supports generating general documentation files.
+A Symfony bundle for generating structured documentation from markdown templates. Designed primarily for creating AI-consumable documentation (Claude Skills, Commands, project docs), but also supports generating general documentation files.
 
 ## Features
 
-- **Markdown Templates with YAML Frontmatter** - Write documentation in markdown with YAML configuration
-- **Macro System** - Dynamic content generation using `{{ macro-name: args }}` syntax
-- **Multiple Output Types** - Generate Claude Skills, Claude Commands, or general documentation
-- **PHP Reflection** - Auto-generate API documentation from PHP classes, interfaces, traits, and enums
-- **Code Examples** - Embed and validate PHP class examples in documentation
-- **Cross-Reference Validation** - Validate references between skills and docs
-- **Priority-Based Processing** - Control generation order with priority settings
+- **Markdown templates with YAML frontmatter** - write documentation in markdown with YAML configuration
+- **Multiple output types** - generate Claude Skills, Claude Commands, project docs, or general files
+- **Macro system** - dynamic content generation using `{{ macro-name: "args" }}` syntax with cross-reference validation
+- **API reference generation** - auto-document PHP classes, interfaces, traits with reflection
+- **Composer package references** - link to documentation of composer dependencies
+- **Code examples** - embed and validate PHP class source code in documentation
+- **Priority-based processing** - control generation order with priority settings
+- **Main file support** - designate a central file that collects references to all docs
 
 ## Installation
 
@@ -33,141 +34,149 @@ return [
 ```yaml
 # config/packages/docs_generator.yaml
 docs_generator:
-    root_dir: '%kernel.project_dir%'     # Project root directory
+    root_dir: '%kernel.project_dir%'     # Project root directory (default)
     source_dir: '/docs-templates'         # Directory containing template files
-    docs_dir: '/docs'                      # Base path for generated documentation (optional)
+    docs_dir: '/docs'                     # Base path for generated docs (optional)
 ```
 
 ## Usage
 
-### Generate Documentation
+Generate documentation with the console command:
 
 ```bash
 php bin/console docs:generate
 ```
 
-### Template Structure
+The generator discovers all `.md` files in the configured `source_dir`, parses their YAML frontmatter, and produces output files based on the configuration.
 
-Templates are markdown files with YAML frontmatter:
+## Template Structure
+
+Templates are markdown files with YAML frontmatter that controls how the output is generated:
 
 ```markdown
 ---
+metadata:
+  priority: 10
 skill:
   target: .claude/skills/my-skill
-  name: My Skill Name
   description: Description of what this skill does
 api:
-  - App\Some\Class
-  - App\Another\Interface
+  - App\Some\ClassName
+  - class: App\Some\Interface
+  - composer: vendor/package-name
 examples:
   - App\Example\ExampleClass
+  - class: App\Another\Example
+    contains:
+      - "expectedMethod"
+  - file: path/to/example.php
 ---
 
 # My Skill Documentation
 
-Content goes here with {{ macro-name: arguments }} support.
+Content goes here with {{ macro-name: "arguments" }} support.
 ```
 
-### Output Types
+## Output Types
 
-#### Skills (Claude AI Skills)
+A single template can produce one or more output types simultaneously.
+
+### Skills
+
+Generates Claude AI Skill files (`SKILL.md`) in the target directory:
 
 ```yaml
 skill:
   target: .claude/skills/skill-name
-  name: Skill Display Name
-  description: Skill description
+  name: Skill Display Name          # optional, defaults to directory basename
+  description: What this skill does
 ```
 
-Generates `SKILL.md` file in the target directory.
+### Commands
 
-#### Commands (Claude Commands)
+Generates Claude CLI command files. The `prompt` field must contain `$ARGUMENTS`:
 
 ```yaml
 commands:
-  - target: .claude/commands/command-name.md
+  - name: my-command
+    prompt: Execute this task with $ARGUMENTS
 ```
 
-Generates command files for Claude CLI.
+### Docs
 
-#### Output Files
-
-```yaml
-output:
-  target: path/to/output.md
-```
-
-Generates arbitrary markdown files.
-
-#### Documentation
+Generates documentation files that can be cross-referenced by other templates. When a main file exists, all docs are automatically listed in a "Project Docs" section:
 
 ```yaml
 docs:
-  target: docs/my-doc.md
-  description: Documentation description
+  target: getting-started.md    # must end with .md
+  description: Getting started guide
 ```
 
-Generates documentation that can be referenced by other templates.
+### Output
 
-### Frontmatter Options
+Generates arbitrary markdown files:
 
-| Option | Description |
-|--------|-------------|
-| `metadata.priority` | Processing priority (0-10, higher = processed first) |
-| `skill` | Claude Skill configuration |
-| `commands` | Array of Claude Command configurations |
-| `output` | Output file configuration |
-| `docs` | Documentation file configuration |
-| `api` | Array of PHP classes to document |
-| `examples` | Array of PHP classes to include as examples |
+```yaml
+output:
+  target: path/to/output.md    # must end with .md
+```
 
-### Built-in Macros
+## Frontmatter Reference
 
-| Macro | Description |
-|-------|-------------|
-| `{{ class-name: ClassName }}` | Outputs fully-qualified class name |
-| `{{ module-namespace: "Pattern" }}` | Module namespace pattern |
-| `{{ submodule-namespace: "Name", "Pattern" }}` | Submodule namespace pattern |
-| `{{ test-module-namespace: "Type", "Pattern" }}` | Test module namespace |
-| `{{ test-submodule-namespace: "Type", "Name", "Pattern" }}` | Test submodule namespace |
-| `{{ skill-reference: skillName }}` | Reference to another skill (validated) |
-| `{{ docs-reference: docName }}` | Reference to documentation (validated) |
-| `{{ docs-list }}` | Auto-generated list of all collected docs |
+### Metadata
 
-### API Documentation
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `metadata.priority` | `int` | `5` | Processing priority (0-10, higher = processed first) |
+| `main` | `bool` | `false` | Designates this as the main file (sets priority to -1, enables docs list) |
+| `macros.disabled` | `bool` | `false` | Disable macro processing for this file |
 
-The `api` frontmatter option automatically generates documentation for PHP classes:
+### API Reference
+
+The `api` frontmatter generates an "API Reference" section with links to source files. Each entry is labeled with its kind (class, interface, trait, or composer package):
 
 ```yaml
 api:
-  - App\Framework\Controller
-  - App\Http\Response\ResponseFactory
-```
+  # String form - class/interface/trait name
+  - App\Http\Controller
 
-This generates class signatures including:
-- Class/interface/trait/enum declarations
-- Methods with full signatures
-- Properties and constants
-- PHPDoc comments
+  # Object form with class
+  - class: App\Http\ResponseFactory
+
+  # Composer package - resolves to llm.md, LLM.md, AGENTS.md, README.md, etc.
+  - composer: vendor/package-name
+```
 
 ### Code Examples
 
-The `examples` frontmatter option embeds PHP class source code:
+The `examples` frontmatter generates an "Examples" section with links to source files:
 
 ```yaml
 examples:
-  - Module\Stock\Feature\Example\ExampleController
-```
+  # String form - class name
+  - App\Example\ExampleController
 
-You can also specify required strings to validate examples contain expected content:
-
-```yaml
-examples:
-  - class: Module\Stock\Feature\Example\ExampleController
+  # Object form with validation
+  - class: App\Example\ExampleController
     contains:
       - "ResponseFactory"
       - "execute"
+
+  # File reference (relative to root dir)
+  - file: src/Example/example.php
 ```
+
+## Built-in Macros
+
+| Macro | Arguments | Description |
+|-------|-----------|-------------|
+| `{{ class-name: "FQN" }}` | 1 | Validates class exists, outputs backtick-wrapped FQN |
+| `{{ skill-reference: "name" }}` | 1 | Validates skill exists, outputs backtick-wrapped reference |
+| `{{ docs-reference: "name" }}` | 1 | Validates doc exists, outputs backtick-wrapped reference |
+| `{{ module-namespace: "Suffix" }}` | 1 | Outputs `Module\%ModuleName%\Suffix` |
+| `{{ submodule-namespace: "Sub", "Suffix" }}` | 2 | Outputs `Module\%ModuleName%\Sub\%SubmoduleName%\Suffix` |
+| `{{ test-module-namespace: "Type", "Suffix" }}` | 2 | Outputs `Tests\Type\Module\%ModuleName%\Suffix` |
+| `{{ test-submodule-namespace: "Type", "Sub", "Suffix" }}` | 3 | Outputs `Tests\Type\Module\%ModuleName%\Sub\%SubmoduleName%\Suffix` |
 
 ## Requirements
 

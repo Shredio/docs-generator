@@ -29,7 +29,7 @@ final readonly class SkillReferenceDocTemplateMacro implements DocTemplateMacro
 			));
 		}
 
-		$context->referenceChecker->checkSkill($context->sourcePath, $arguments[0]);
+		$context->dataCollector->checkSkill($context->sourcePath, $arguments[0]);
 
 		return sprintf('`%s`', $arguments[0]);
 	}

@@ -2,17 +2,15 @@
 
 namespace Shredio\DocsGenerator\Macro;
 
-use Shredio\DocsGenerator\Collector\CollectedData;
-use Shredio\DocsGenerator\FilePath\SourcePath;
-use Shredio\DocsGenerator\Reference\ReferenceChecker;
+use Shredio\DocsGenerator\Collector\DataCollector;
+use Shredio\DocsGenerator\Path\ResolvedPath;
 
 final readonly class DocTemplateMacroContext
 {
 
 	public function __construct(
-		public SourcePath $sourcePath,
-		public ReferenceChecker $referenceChecker,
-		public ?CollectedData $collectedData,
+		public ResolvedPath $sourcePath,
+		public DataCollector $dataCollector,
 	)
 	{
 	}

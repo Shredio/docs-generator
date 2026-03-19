@@ -29,7 +29,7 @@ final readonly class DocsReferenceDocTemplateMacro implements DocTemplateMacro
 			));
 		}
 
-		$context->referenceChecker->checkDoc($context->sourcePath, $arguments[0]);
+		$context->dataCollector->checkDoc($context->sourcePath, $arguments[0]);
 
 		return sprintf('`%s`', $arguments[0]);
 	}
