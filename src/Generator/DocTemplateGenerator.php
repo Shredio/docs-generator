@@ -279,7 +279,7 @@ final class DocTemplateGenerator
 		$schema = $s->arrayShape([
 			'skill' => $s->optional($s->arrayShape([
 				'target' => $s->nonEmptyString(),
-				'name' => $s->nonEmptyString(),
+				'name' => $s->optional($s->nonEmptyString()),
 				'description' => $s->nonEmptyString(),
 			])),
 		], true);
@@ -297,7 +297,7 @@ final class DocTemplateGenerator
 		$this->referenceChecker->addSkill($skillName);
 
 		yield $values['skill']['target'] . '/SKILL.md' => MarkdownFrontmatterParser::dump([
-			'name' => $values['skill']['name'],
+			'name' => $values['skill']['name'] ?? $skillName,
 			'description' => $values['skill']['description'],
 		]) . $content;
 	}
